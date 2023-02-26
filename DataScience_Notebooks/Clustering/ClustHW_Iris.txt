@@ -1,0 +1,159 @@
+Kaggle Code Clustering IRIS Data
+
+import numpy as np 			# linear algebra
+import pandas as pd 			# data processing, CSV file I/O (e.g. pd.read_csv)
+import matplotlib.pyplot as plt 		# plot data, visualizations
+import seaborn as sns
+import sys
+
+#http://scikit-learn.org/stable/modules/clustering.html
+
+from sklearn import metrics  							# metrics like silhouette coefficient or adjusted rand index
+from sklearn.preprocessing import StandardScaler  				# scaling dataset
+from sklearn.cluster import KMeans, AgglomerativeClustering		 	# clustering
+
+
+import os
+print(os.listdir("../input"))  			#define working directory!!!
+
+#load iris data and print first 5 rows
+
+#load iris data and print first 5 rows
+
+df = pd.read_csv('../input/iris.csv')
+
+#adjust data to process (obejct to float64)
+
+df['Sepal.Width'] = pd.to_numeric(df['Sepal.Width'].str.replace(',','.'))
+df['Sepal.Length'] = pd.to_numeric(df['Sepal.Length'].str.replace(',','.'))
+df['Petal.Width'] = pd.to_numeric(df['Petal.Width'].str.replace(',','.'))
+df['Petal.Length'] = pd.to_numeric(df['Petal.Length'].str.replace(',','.'))
+print(df.head(5))
+
+#show basic statistics
+
+df.describe()
+
+#show data types
+
+df.dtypes
+
+
+#make correlation heatmap using seaborn lib
+#subset the data
+
+df1 = df[['Sepal.Length','Sepal.Width','Petal.Length','Petal.Width']]
+
+#print(df1)
+#calculate correlations between dimensions
+
+cor = df1.corr()
+
+#print(cor)
+
+print(sns.__version__)		#update version in anaconda!!!
+
+#show heatmap with correlations	#plot not show up in jupyter notebook -> https://stackoverflow.com/questions/26597116/seaborn-plots-not-showing-up?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+
+sns.heatmap(cor, square = True)
+
+#plot pairwise relationships in a dataset
+
+g = sns.PairGrid(df, hue='Species')	#hue: variable in data to map plot aspects to different colors
+g.map_diag(plt.hist)		#make histogram on diagonal
+g.map_offdiag(plt.scatter)
+g.add_legend()
+
+
+#scaling/normalize the data
+
+scaler = StandardScaler()
+sc_data = scaler.fit_transform(df1)
+print(sc_data.shape)
+#print(sc_data)
+
+
+#K-Means Clustering: define number of clusters with elbow criteria
+
+k_cluster = range(1,10)
+k_cluster_err = []
+
+for num_clusters in k_cluster:
+    clusters = KMeans(num_clusters)
+    clusters.fit(sc_data)
+    k_cluster_err.append(clusters.inertia_) #calculate sum of squared distance
+
+#save results in dataframe
+
+clusters_df = pd.DataFrame({'k_cluster': k_cluster, 'k_cluster_err_WCSS': k_cluster_err})
+print(clusters_df)
+
+#plot elbow criteria
+
+plt.figure(figsize=(15,8))
+plt.xlabel('number of clusters K')
+plt.ylabel('WCSS (within cluster sum of squares)')
+plt.plot(clusters_df.k_cluster, clusters_df.k_cluster_err_WCSS, marker='x')
+
+#K-Means Clustering: define number of clusters with silhouette coefficient (and adjusted rand score: measures the similarity between true labels and predicted labels)
+k_cluster = range(2,10)
+k_cluster_sil = []
+k_cluster_ars = []
+
+for num_clusters in k_cluster:
+    clusters = KMeans(num_clusters, random_state=1)
+    clusters.fit(sc_data)
+    labels = clusters.labels_
+    k_cluster_sil.append(metrics.silhouette_score(sc_data, labels, metric='euclidean'))
+    k_cluster_ars.append(metrics.adjusted_rand_score(df['Species'],labels))
+
+#save results in dataframe
+clusters_sil_df = pd.DataFrame({'k_cluster': k_cluster, 'k_cluster_sil': k_cluster_sil, 'k_cluster_ars': k_cluster_ars})
+print(clusters_sil_df)
+
+#K-Means Clustering
+
+k_cluster = 3
+kmeans_model = KMeans(n_clusters=k_cluster, random_state=10)
+kmeans_model.fit(sc_data)
+
+centroids = kmeans_model.cluster_centers_
+labels = kmeans_model.predict(sc_data)
+
+kmeans = pd.DataFrame(labels)
+
+#add kmeans clusters to iris dataset
+#df.insert((df.shape[1]),'kmeans',kmeans)
+
+print('centroids: ' + str(centroids))
+print(labels)
+print(df.head(5))
+print(df.tail(5))
+
+plt.scatter(sc_data[:, 0], sc_data[:, 1], c=labels, s=30, cmap='viridis')
+plt.scatter(centroids[:, 0], centroids[:, 1], c='black', s=200, alpha=0.5)
+
+#visualize K-Means Result
+
+#alternate way of visualizing the clusters
+plt.scatter(sc_data[labels == 0, 0], sc_data[labels == 0, 1], s = 100, c = 'red', label = 'Iris-setosa')
+plt.scatter(sc_data[labels == 1, 0], sc_data[labels == 1, 1], s = 100, c = 'blue', label = 'Iris-versicolour')
+plt.scatter(sc_data[labels == 2, 0], sc_data[labels == 2, 1], s = 100, c = 'green', label = 'Iris-virginica')
+#plotting the centroids
+plt.scatter(centroids[:, 0], centroids[:,1], s = 100, c = 'black', label = 'Centroids')
+#plot legend
+plt.legend()
+
+#target vs model labels
+print(df.Species.value_counts())
+print(df.kmeans.value_counts())
+
+print(df[0:5])
+print(df[50:55])
+print(df[100:105])
+
+
+
+
+
+
